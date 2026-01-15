@@ -1,6 +1,6 @@
 boto3==1.42.21
 botocore==1.42.21
-dnspython==2.8.0
+dnspython==2.7.0
 jmespath==1.0.1
 kafka==1.3.5
 kafka-python==2.3.0

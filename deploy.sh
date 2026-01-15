@@ -2,14 +2,25 @@
 set -e
 
 # -------------------------
-# Variables (edit as needed)
+# Validate input
 # -------------------------
+if [ -z "$1" ]; then
+  echo "Usage: $0 <EC2_PUBLIC_IP>"
+  exit 1
+fi
+
+EC2_PUBLIC_IP="$1"
+
+# -------------------------
+# Variables
+# -------------------------
+GIT_REPO_URL="git@github.com:Sam-Radnus/mediaflow.git"
 PROJECT_DIR="/home/ec2-user/mediaflow"
 VENV_DIR="$PROJECT_DIR/venv"
 GUNICORN_SERVICE="/etc/systemd/system/fastapi.service"
 NGINX_CONF="/etc/nginx/conf.d/fastapi.conf"
 FFMPEG_DIR="/usr/local/bin"
-APP_MODULE="main:app"    # Adjust if your entrypoint is different
+APP_MODULE="main:app"
 WORKERS=2
 
 # -------------------------
@@ -20,7 +31,8 @@ sudo dnf update -y
 # -------------------------
 # 2. Install dependencies
 # -------------------------
-sudo dnf install -y python3 python3-venv python3-pip git nginx
+sudo dnf install -y git nginx curl
+
 
 # -------------------------
 # 3. Install FFmpeg (static binary)
@@ -35,14 +47,23 @@ sudo mv $TMP_DIR/ffmpeg $FFMPEG_DIR/
 sudo mv $TMP_DIR/ffprobe $FFMPEG_DIR/
 rm -rf $TMP_DIR
 
-# Verify FFmpeg
 ffmpeg -version
 
 # -------------------------
-# 4. Setup project & virtual environment
+# 4. Clone or update project
 # -------------------------
+if [ ! -d "$PROJECT_DIR/.git" ]; then
+  sudo -u ec2-user git clone $GIT_REPO_URL $PROJECT_DIR
+else
+  cd $PROJECT_DIR
+  sudo -u ec2-user git pull
+fi
+
 cd $PROJECT_DIR
 
+# -------------------------
+# 5. Setup virtual environment
+# -------------------------
 python3 -m venv $VENV_DIR
 source $VENV_DIR/bin/activate
 pip install --upgrade pip
@@ -50,7 +71,7 @@ pip install -r requirements.txt
 pip install gunicorn
 
 # -------------------------
-# 5. Setup systemd service
+# 6. Setup systemd service
 # -------------------------
 sudo tee $GUNICORN_SERVICE > /dev/null <<EOF
 [Unit]
@@ -73,15 +94,15 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable fastapi
-sudo systemctl start fastapi
+sudo systemctl restart fastapi
 
 # -------------------------
-# 6. Setup Nginx
+# 7. Setup Nginx
 # -------------------------
 sudo tee $NGINX_CONF > /dev/null <<EOF
 server {
-    listen 80 default_server;
-    server_name _;
+    listen 80;
+    server_name $EC2_PUBLIC_IP;
 
     client_max_body_size 5G;
 
@@ -99,21 +120,19 @@ server {
 }
 EOF
 
-# Remove default conf to avoid conflicts
 sudo rm -f /etc/nginx/conf.d/default.conf
 
-# Test and restart Nginx
 sudo nginx -t
 sudo systemctl enable nginx
 sudo systemctl restart nginx
 
 # -------------------------
-# 7. Final message
+# 8. Final message
 # -------------------------
 echo "==========================================="
-echo "Deployment complete!"
-echo "FastAPI should now be accessible at:"
-echo "http://<EC2_PUBLIC_IP>/docs"
-echo "Gunicorn is bound to 127.0.0.1:8000 and proxied via Nginx"
-echo "FFmpeg installed at $FFMPEG_DIR/ffmpeg"
+echo "Deployment complete"
+echo "Application URL:"
+echo "http://$EC2_PUBLIC_IP/docs"
+echo "Project directory: $PROJECT_DIR"
+echo "FFmpeg path: $FFMPEG_DIR/ffmpeg"
 echo "==========================================="
