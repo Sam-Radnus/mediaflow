@@ -31,7 +31,7 @@ sudo dnf update -y
 # -------------------------
 # 2. Install dependencies
 # -------------------------
-sudo dnf install -y git nginx curl
+sudo dnf install -y git nginx curl docker
 
 
 # -------------------------

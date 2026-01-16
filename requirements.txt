@@ -2,7 +2,7 @@ boto3
 botocore
 dnspython
 jmespath
-kafka
+fastapi
 kafka-python
 pymongo
 python-dateutil
