@@ -10,3 +10,4 @@ python-dotenv
 s3transfer
 six
 urllib3
+uvicorn
