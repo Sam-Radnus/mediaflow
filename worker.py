@@ -11,16 +11,19 @@ import tempfile
 import subprocess
 import shutil
 import re
+import socket
+import boto3
+
 from datetime import datetime
 from urllib.parse import urlparse
 
 from kafka import KafkaConsumer
 from kafka.errors import KafkaError
-import boto3
 from dotenv import load_dotenv
 from db import get_db_client
 
 load_dotenv()
+hostname = socket.gethostname()
 
 # -------------------- Configuration --------------------
 
@@ -240,12 +243,14 @@ def process_video_job(job_data: dict):
     local_source = None
     output_path = None
     log_path = None
+
+    # extract IP of node and add it to job data.
     
     try:
         print(f"[{job_id}] Starting job: {method_name} on {source}")
         db_service.update(
             {"job_id": job_id},
-            {"status": "processing", "progress": 10}
+            {"status": "processing", "progress": 10, "hostname": hostname}
         )
         print(f"[{job_id}] Status updated: processing (10%)")
 

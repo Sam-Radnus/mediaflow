@@ -1,12 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
 from datetime import datetime
 import os
 import tempfile
 import uuid
-from typing import Optional
 import json
 import boto3
 from urllib.parse import urlparse
@@ -14,6 +12,7 @@ from dotenv import load_dotenv
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 from db import get_db_client
+from schema import *
 
 load_dotenv()
 app = FastAPI()
@@ -77,21 +76,6 @@ def parse_s3_url(s3_url: str) -> tuple[str, str]:
     key = parsed.path.lstrip("/")
     return bucket, key
 
-class VideoRequest(BaseModel):
-    source: str
-    method_name: str
-    output_format: Optional[str] = None
-
-
-class JobStatus(BaseModel):
-    job_id: str
-    status: str
-    progress: int
-    created_at: str
-    completed_at: Optional[str]
-    error: Optional[str]
-    output_path: Optional[str]
-    log_path: Optional[str]
 
 
 # -------------------- API Endpoints --------------------
@@ -120,6 +104,7 @@ def process_video(request: VideoRequest):
         "created_at": datetime.utcnow().isoformat(),
         "completed_at": None,
         "error": None,
+        "ip": None,
         "output_path": None,
         "log_path": None
     }
@@ -199,7 +184,6 @@ def download_result(job_id: str):
 def list_jobs(limit: int = 10, skip: int = 0):
     jobs = db_service.find(
         {},
-        projection={"_id": 0},
         sort=[("created_at", -1)],
         skip=skip,
         limit=limit
