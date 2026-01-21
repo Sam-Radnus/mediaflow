@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Worker daemon that consumes video processing jobs from Kafka and processes them.
-Multiple workers can run in parallel using Kafka consumer groups.
-"""
 
 import os
 import sys
@@ -243,8 +239,6 @@ def process_video_job(job_data: dict):
     local_source = None
     output_path = None
     log_path = None
-
-    # extract IP of node and add it to job data.
     
     try:
         print(f"[{job_id}] Starting job: {method_name} on {source}")
@@ -271,7 +265,6 @@ def process_video_job(job_data: dict):
         temp_log.close()
         print(f"[{job_id}] Created temporary files: output={output_path}, log={log_path}")
 
-        # Download source file if it's from S3
         if is_s3_path(source):
             print(f"[{job_id}] Downloading source from S3: {source}")
             local_source = copy_to_temp(source)
@@ -328,7 +321,6 @@ def process_video_job(job_data: dict):
             print(f"[{job_id}] Cleaned up local files")
         else:
             print(f"[{job_id}] ✗ Video processing failed: {message[:100]}...")
-            # Upload failed log to S3
             s3_log_path = upload_to_s3(log_path, job_id, "log")
             
             db_service.update(
@@ -380,7 +372,6 @@ def process_video_job(job_data: dict):
         if local_source and is_s3_path(source) and os.path.exists(local_source):
             os.unlink(local_source)
 
-# -------------------- Kafka Consumer --------------------
 
 def main():
     """Main worker loop - consumes messages from Kafka"""
@@ -409,7 +400,6 @@ def main():
                 print(f"Completed job: {job_data.get('job_id')}")
             except Exception as e:
                 print(f"Error processing job: {e}", file=sys.stderr)
-                # Continue processing other jobs
                 continue
     except KeyboardInterrupt:
         print("\nShutting down worker...")

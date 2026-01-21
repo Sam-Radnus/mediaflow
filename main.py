@@ -80,6 +80,10 @@ def parse_s3_url(s3_url: str) -> tuple[str, str]:
 
 # -------------------- API Endpoints --------------------
 
+@app.get("/")
+def health_check():
+    return {"status":"ok"}
+
 @app.post("/process")
 def process_video(request: VideoRequest):
     if not is_s3_path(request.source) and not os.path.exists(request.source):
@@ -128,7 +132,6 @@ def process_video(request: VideoRequest):
         future.get(timeout=10)  # Wait for confirmation
         
     except KafkaError as e:
-        # If Kafka fails, mark job as failed
         db_service.update(
             {"job_id": job_id},
             {
