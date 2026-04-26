@@ -7,6 +7,13 @@ class VideoRequest(BaseModel):
     output_format: Optional[str] = None
 
 
+class ThumbnailRequest(BaseModel):
+    source: str
+    timestamp: Optional[str] = "00:00:01"
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+
 class JobStatus(BaseModel):
     job_id: str
     status: str

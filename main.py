@@ -183,6 +183,57 @@ def download_result(job_id: str):
         media_type="application/octet-stream"
     )
 
+@app.post("/thumbnail")
+def generate_thumbnail(request: ThumbnailRequest):
+    if not is_s3_path(request.source) and not os.path.exists(request.source):
+        raise HTTPException(status_code=404, detail="Source file not found")
+
+    job_id = str(uuid.uuid4())
+
+    job_doc = {
+        "job_id": job_id,
+        "source": request.source,
+        "method_name": "generate_thumbnail",
+        "output_format": "png",
+        "status": "queued",
+        "progress": 0,
+        "created_at": datetime.utcnow().isoformat(),
+        "completed_at": None,
+        "error": None,
+        "ip": None,
+        "output_path": None,
+        "log_path": None
+    }
+
+    db_service.insert(job_doc)
+
+    try:
+        producer = get_kafka_producer()
+        job_message = {
+            "job_id": job_id,
+            "source": request.source,
+            "method_name": "generate_thumbnail",
+            "timestamp": request.timestamp,
+            "width": request.width,
+            "height": request.height,
+        }
+
+        future = producer.send(KAFKA_TOPIC, key=job_id, value=job_message)
+        producer.flush()
+        future.get(timeout=10)
+
+    except KafkaError as e:
+        db_service.update(
+            {"job_id": job_id},
+            {
+                "status": "failed",
+                "error": f"Failed to queue job: {str(e)}"
+            }
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to queue job: {str(e)}")
+
+    return {"job_id": job_id, "status": "queued"}
+
 @app.get("/process")
 def list_jobs(limit: int = 10, skip: int = 0):
     jobs = db_service.find(
